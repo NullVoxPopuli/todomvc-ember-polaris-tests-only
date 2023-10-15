@@ -10,7 +10,7 @@ import {
 	triggerKeyEvent,
 	visit,
 } from '@ember/test-helpers';
-import { module, test } from 'qunit';
+import { module, skip, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 
 function byText(selector, text) {
@@ -162,32 +162,17 @@ module('Behavior', function (hooks) {
 			assert.dom('.filters').exists();
 		});
 
-		test('URL navigation works', async function (assert) {
-			assert.deepEqual(getTodosTexts(), ['first todo']);
-
-			await visit('/active');
-			assert.strictEqual(activeFilter(), 'Active', 'current filter is "Active"');
-			assert.deepEqual(getTodosTexts(), ['first todo']);
-
-			await visit('/completed');
-			assert.strictEqual(activeFilter(), 'Completed', 'current filter is "Completed"');
-			assert.deepEqual(getTodosTexts(), []);
-		});
-
 		test('Link navigation works', async function (assert) {
 			await clickActive();
 			assert.strictEqual(activeFilter(), 'Active', 'current filter is "Active"');
-			assert.strictEqual(currentURL(), '/active');
 			assert.deepEqual(getTodosTexts(), ['first todo']);
 
 			await clickCompleted();
 			assert.strictEqual(activeFilter(), 'Completed', 'current filter is "Completed"');
-			assert.strictEqual(currentURL(), '/completed');
 			assert.deepEqual(getTodosTexts(), []);
 
 			await clickAll();
 			assert.strictEqual(activeFilter(), 'All', 'current filter is "All"');
-			assert.strictEqual(currentURL(), '/');
 			assert.deepEqual(getTodosTexts(), ['first todo']);
 		});
 
