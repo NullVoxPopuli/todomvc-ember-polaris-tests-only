@@ -6,29 +6,30 @@ import title from 'ember-page-title/helpers/page-title';
 import { cell } from 'ember-resources';
 import { TrackedMap, TrackedObject } from 'tracked-built-ins';
 
-let isEnter = (event) => event.keyCode === 13;
+let isEnter=event=>event.keyCode === 13;
 
-let all = 'All';
-let active = 'Active';
-let completed = 'Completed';
+let all='All';
+let active='Active';
+let completed='Completed';
 
-export let activeList = cell(all);
-export let canToggleAll = cell(true);
-export let isEditing = cell(false);
+export let activeList=cell(all);
+export let canToggleAll=cell(true);
+export let isEditing=cell(false);
 
 class Repo {
-	data = null;
+	data=null;
 
-	load = () => {
-		let list = JSON.parse(localStorage.getItem('todos') || '[]');
+	load=() => {
+		this.data =
+      JSON
+      .parse(localStorage.getItem('todos') || '[]')
+      .reduce((data, todo) => {
+			  data.set(todo.id, new TrackedObject(todo));
 
-		this.data = list.reduce((data, todo) => {
-			data.set(todo.id, new TrackedObject(todo));
-
-			return data;
-		}, new TrackedMap());
+			  return data;
+		  }, new TrackedMap());
 	};
-  save = () => localStorage.setItem('todos', JSON.stringify(this.all));
+  save=()=> localStorage.setItem('todos', JSON.stringify(this.all));
 
 	get all() {
 		return [...this.data.values()];
@@ -46,19 +47,19 @@ class Repo {
 		return this.completed.length === this.all.length;
 	}
 
-	add = info => {
+	add=info => {
 		let newId = uniqueId();
 
 		this.data.set(newId, new TrackedObject({ ...info, id: newId }));
 		this.save();
 	};
 
-	delete = todo => {
+	delete=todo => {
 		this.data.delete(todo.id);
 		this.save();
 	};
-	clearCompleted = () => this.completed.forEach(this.delete);
-  markAll = (todos, value) => {
+	clearCompleted=() => this.completed.forEach(this.delete);
+  markAll=(todos, value) => {
     todos.forEach(todo => todo.completed = value);
     this.save();
   }
@@ -66,28 +67,26 @@ class Repo {
 
 export let repo = new Repo();
 
-let isAll = () => activeList.current === all;
-let isActive = () => activeList.current === active;
-let isCompleted = () => activeList.current === completed;
-let showAll = () => (activeList.current = all);
-let showActive = () => (activeList.current = active);
-let showCompleted = () => (activeList.current = completed);
+let isAll=()=>activeList.current === all;
+let isActive=()=>activeList.current === active;
+let isCompleted=()=>activeList.current === completed;
+let showAll=()=>activeList.current = all;
+let showActive=()=>activeList.current = active;
+let showCompleted=()=>activeList.current = completed;
 
-let getTitle = () => (isAll() ? all : isActive() ? active : completed);
-let getTodos = () =>
-	isAll() ? repo.all : isActive() ? repo.active : repo.completed;
+let getTitle=()=>isAll() ? all : isActive() ? active : completed;
+let getTodos=()=>isAll() ? repo.all : isActive() ? repo.active : repo.completed;
 
 let TodoApp = <template>
-	{{repo.load}}
-
-	<section class="todoapp">
-		<header class="header">
+  {{repo.load}}
+	<section class='todoapp'>
+		<header class='header'>
 			<h1>todos</h1>
 
 			<input
-				class="new-todo"
-				{{on "keydown" createTodo}}
-				placeholder="What needs to be done?"
+				class='new-todo'
+				{{on 'keydown' createTodo}}
+				placeholder='What needs to be done?'
 				autofocus
 			/>
 		</header>
@@ -102,6 +101,7 @@ let TodoApp = <template>
 </template>;
 
 export default TodoApp;
+// live note: create placeholder components for the above here
 
 function createTodo(event) {
 	let title = event.target.value.trim();
@@ -115,19 +115,19 @@ function createTodo(event) {
 let toggleAll = (todos) => repo.markAll(todos, !repo.areAllCompleted);
 
 let TodoList = <template>
-	<section class="main">
+	<section class='main'>
 		{{#if @todos.length}}
 			{{#if canToggleAll.current}}
 				<input
-					id="toggle-all"
-					class="toggle-all"
-					type="checkbox"
+					id='toggle-all'
+					class='toggle-all'
+					type='checkbox'
 					checked={{repo.areAllCompleted}}
-					{{on "change" (fn toggleAll @todos)}}
+					{{on 'change' (fn toggleAll @todos)}}
 				/>
-				<label for="toggle-all">Mark all as complete</label>
+				<label for='toggle-all'>Mark all as complete</label>
 			{{/if}}
-			<ul class="todo-list">
+			<ul class='todo-list'>
 				{{#each @todos as |todo|}}
 					<TodoItem @todo={{todo}} />
 				{{/each}}
@@ -138,21 +138,21 @@ let TodoList = <template>
 
 let TodoItem = <template>
 	<li class="{{if @todo.completed 'completed'}} {{if isEditing.current 'editing'}}">
-		<div class="view">
+		<div class='view'>
 			<input
-				class="toggle"
-				type="checkbox"
+				class='toggle'
+				type='checkbox'
 				checked={{@todo.completed}}
-				{{on "change" (fn toggleCompleted @todo)}}
+				{{on 'change' (fn toggleCompleted @todo)}}
 			/>
-			<label {{on "dblclick" startEditing}}>{{@todo.title}}</label>
-			<button class="destroy" {{on "click" (fn repo.delete @todo)}}></button>
+			<label {{on 'dblclick' startEditing}}>{{@todo.title}}</label>
+			<button class='destroy' {{on 'click' (fn repo.delete @todo)}}></button>
 		</div>
 		<input
-			class="edit"
+			class='edit'
 			value={{@todo.title}}
-			{{on "blur" (fn doneEditing @todo)}}
-			{{on "keydown" itemKeydown}}
+			{{on 'blur' (fn doneEditing @todo)}}
+			{{on 'keydown' itemKeydown}}
 			autofocus
 		/>
 	</li>
@@ -194,27 +194,27 @@ function itemKeydown(event) {
 let itemLabel = (count) => (count === 0 || count > 1) ? 'items' : 'item';
 
 let Footer = <template>
-	<footer class="footer">
-		<span class="todo-count">
+	<footer class='footer'>
+		<span class='todo-count'>
 			<strong>{{repo.active.length}}</strong>
 			{{itemLabel repo.active.length}}
 			left
 		</span>
 
-		<ul class="filters">
+		<ul class='filters'>
 			<li>
-				<a href="#" class={{if (isAll) "selected"}} {{on "click" showAll}}>{{all}}</a>
+				<a href='#' class={{if (isAll) 'selected'}} {{on 'click' showAll}}>{{all}}</a>
 			</li>
 			<li>
-				<a href="#" class={{if (isActive) "selected"}} {{on "click" showActive}}>{{active}}</a>
+				<a href='#' class={{if (isActive) 'selected'}} {{on 'click' showActive}}>{{active}}</a>
 			</li>
 			<li>
-				<a href="#" class={{if (isCompleted) "selected"}} {{on "click" showCompleted}}>{{completed}}</a>
+				<a href='#' class={{if (isCompleted) 'selected'}} {{on 'click' showCompleted}}>{{completed}}</a>
 			</li>
 		</ul>
 
 		{{#if repo.completed.length}}
-			<button class="clear-completed" {{on "click" repo.clearCompleted}}>
+			<button class='clear-completed' {{on 'click' repo.clearCompleted}}>
 				Clear completed
 			</button>
 		{{/if}}
