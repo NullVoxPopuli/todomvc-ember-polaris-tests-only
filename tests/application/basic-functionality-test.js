@@ -2,7 +2,6 @@ import { assert } from '@ember/debug';
 import {
 	blur,
 	click,
-	currentURL,
 	fillIn,
 	find,
 	findAll,
@@ -112,10 +111,16 @@ async function toggleAll() {
 	await click('#toggle-all');
 }
 
+import { activeList, canToggleAll, isEditing, repo } from 'todomvc/components/layout';
+
 module('Behavior', function (hooks) {
 	setupApplicationTest(hooks);
 
 	hooks.beforeEach(function () {
+		repo.data = null;
+		activeList.current = 'All';
+		canToggleAll.current = true;
+		isEditing.current = false;
 		localStorage.clear();
 	});
 
@@ -162,32 +167,17 @@ module('Behavior', function (hooks) {
 			assert.dom('.filters').exists();
 		});
 
-		test('URL navigation works', async function (assert) {
-			assert.deepEqual(getTodosTexts(), ['first todo']);
-
-			await visit('/active');
-			assert.strictEqual(activeFilter(), 'Active', 'current filter is "Active"');
-			assert.deepEqual(getTodosTexts(), ['first todo']);
-
-			await visit('/completed');
-			assert.strictEqual(activeFilter(), 'Completed', 'current filter is "Completed"');
-			assert.deepEqual(getTodosTexts(), []);
-		});
-
 		test('Link navigation works', async function (assert) {
 			await clickActive();
 			assert.strictEqual(activeFilter(), 'Active', 'current filter is "Active"');
-			assert.strictEqual(currentURL(), '/active');
 			assert.deepEqual(getTodosTexts(), ['first todo']);
 
 			await clickCompleted();
 			assert.strictEqual(activeFilter(), 'Completed', 'current filter is "Completed"');
-			assert.strictEqual(currentURL(), '/completed');
 			assert.deepEqual(getTodosTexts(), []);
 
 			await clickAll();
 			assert.strictEqual(activeFilter(), 'All', 'current filter is "All"');
-			assert.strictEqual(currentURL(), '/');
 			assert.deepEqual(getTodosTexts(), ['first todo']);
 		});
 

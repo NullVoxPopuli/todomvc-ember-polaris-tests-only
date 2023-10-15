@@ -1,5 +1,6 @@
 # unconventional js
 /blueprints/*/files/
+app/components/layout.gjs
 
 # compiled output
 /dist/
