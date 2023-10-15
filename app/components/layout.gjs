@@ -1,6 +1,4 @@
-import Component from '@glimmer/component';
-import { tracked } from '@glimmer/tracking';
-import { uniqueId } from '@ember/helper';
+import { fn, uniqueId } from '@ember/helper';
 import { on } from '@ember/modifier';
 import { isBlank } from '@ember/utils';
 
@@ -12,7 +10,10 @@ function hasTodos(todos) {
   return todos.length > 0;
 }
 
-const activeList = cell('All');
+export const activeList = cell('All');
+export const canToggleAll = cell(true);
+export const isEditing = cell(false);
+
 const isViewingAll = () => activeList.current === 'All';
 const isViewingActive = () => activeList.current === 'Active';
 const isViewingCompleted = () => activeList.current === 'Completed';
@@ -23,9 +24,7 @@ const showCompleted = () => activeList.current = 'Completed';
 class Repo {
 	data = null;
 
-	load = () => {
-		this.data = load();
-	};
+	load = () => {this.data = load()};
 
 	get all() {
 		return [...this.data.values()];
@@ -40,13 +39,12 @@ class Repo {
 	}
 
 	get remaining() {
-		// This is an alias
 		return this.active;
 	}
 
-	clearCompleted = () => {
-		this.completed.forEach(this.delete);
-	};
+  get areAllCompleted() {
+    return this.completed.length === this.all.length;
+  }
 
 	add = (attrs) => {
 		let newId = uniqueId();
@@ -60,13 +58,12 @@ class Repo {
 		this.persist();
 	};
 
-	persist = () => {
-		save(this.data);
-	};
+	clearCompleted = () => this.completed.forEach(this.delete);
+	persist = () => save(this.data);
 }
 
 
-const repo = new Repo();
+export const repo = new Repo();
 
 const TodoApp = <template>
   {{repo.load}}
@@ -152,7 +149,23 @@ const Footer = <template>
      {{itemLabel repo.remaining.length}} left
     </span>
 
-    <Filters />
+    <ul class="filters">
+      <li>
+        <a href="#" class={{if (isViewingAll) 'selected'}} {{on 'click' showAll}}>
+          All
+        </a>
+      </li>
+      <li>
+        <a href="#" class={{if (isViewingActive) 'selected'}} {{on 'click' showActive}}>
+          Active
+        </a>
+      </li>
+      <li>
+        <a href="#" class={{if (isViewingCompleted) 'selected'}} {{on 'click' showCompleted}}>
+          Completed
+        </a>
+      </li>
+    </ul>
 
     {{#if repo.completed.length}}
       <button class="clear-completed" type="button" {{on "click" repo.clearCompleted}}>
@@ -163,137 +176,93 @@ const Footer = <template>
 </template>;
 
 
+function toggleAll(todos) {
+  let areAllCompleted = repo.areAllCompleted;
 
-const Filters = <template>
-  <ul class="filters">
-    <li>
-      <a href="#" class={{if (isViewingAll) 'selected'}} {{on 'click' showAll}}>
-        All
-      </a>
-    </li>
-    <li>
-      <a href="#" class={{if (isViewingActive) 'selected'}} {{on 'click' showActive}}>
-        Active
-      </a>
-    </li>
-    <li>
-      <a href="#" class={{if (isViewingCompleted) 'selected'}} {{on 'click' showCompleted}}>
-        Completed
-      </a>
-    </li>
-  </ul>
+  todos.forEach(todo => todo.completed = !areAllCompleted);
+  repo.persist();
+}
+
+const TodoList = <template>
+  <section class="main">
+    {{#if @todos.length}}
+      {{#if canToggleAll.current}}
+        <input
+          id="toggle-all"
+          class="toggle-all"
+          type="checkbox"
+          checked={{repo.areAllCompleted}}
+          {{on 'change' (fn toggleAll @todos)}}
+        >
+        <label for="toggle-all">Mark all as complete</label>
+      {{/if}}
+      <ul class="todo-list">
+        {{#each @todos as |todo|}}
+          <TodoItem @todo={{todo}} />
+        {{/each}}
+      </ul>
+    {{/if}}
+  </section>
 </template>;
 
 
-class TodoList extends Component {
-  <template>
-    <section class="main">
-      {{#if @todos.length}}
-        {{#if this.canToggle}}
-          <input
-            id="toggle-all"
-            class="toggle-all"
-            type="checkbox"
-            checked={{this.areAllCompleted}}
-            {{on 'change' this.toggleAll}}
-          >
-          <label for="toggle-all">Mark all as complete</label>
-        {{/if}}
-        <ul class="todo-list">
-          {{#each @todos as |todo|}}
-            <TodoItem
-              @todo={{todo}}
-              @onStartEdit={{this.disableToggle}}
-              @onEndEdit={{this.enableToggle }}
-            />
-          {{/each}}
-        </ul>
-      {{/if}}
-    </section>
-  </template>
-
-  @tracked canToggle = true;
-
-  get areAllCompleted() {
-    return repo.completed.length === repo.all.length;
-  }
-
-  toggleAll = () => {
-    let allCompleted = this.areAllCompleted;
-
-    this.args.todos.forEach(todo => todo.completed = !allCompleted);
+function toggleCompleted(todo, event) {
+    todo.completed = event.target.checked;
     repo.persist();
-  }
-
-  enableToggle = () => this.canToggle = true;
-  disableToggle = () => this.canToggle = false;
-
 }
 
+function startEditing(event) {
+  canToggleAll.current = false;
+  isEditing.current = true;
 
-class TodoItem extends Component {
-  <template>
-    <li class="{{if @todo.completed 'completed'}} {{if this.editing 'editing'}}">
-      <div class="view">
-        <input
-          class="toggle"
-          type="checkbox"
-          aria-label="Toggle the completion state of this todo"
-          checked={{@todo.completed}}
-          {{on 'change' this.toggleCompleted}}
-        >
-        <label {{on 'dblclick' this.startEditing}}>{{@todo.title}}</label>
-        <button
-          class="destroy"
-          {{on 'click' this.removeTodo}}
-          type="button"
-          aria-label="Delete this todo"></button>
-      </div>
+  event.target.closest('li')?.querySelector('input.edit').focus();
+}
+
+function doneEditing(todo, event) {
+  if (!isEditing.current) { return; }
+
+  let todoTitle = event.target.value.trim();
+
+  if (isBlank(todoTitle)) {
+    repo.delete(todo);
+  } else {
+    todo.title = todoTitle;
+    isEditing.current = false;
+    canToggleAll.current = true;
+  }
+}
+
+function itemKeydown(event) {
+  if (event.keyCode === 13) {
+    event.target.blur();
+  } else if (event.keyCode === 27) {
+    isEditing.current = false;
+  }
+}
+
+const TodoItem = <template>
+  <li class="{{if @todo.completed 'completed'}} {{if isEditing.current 'editing'}}">
+    <div class="view">
       <input
-        class="edit"
-        value={{@todo.title}}
-        {{on 'blur' this.doneEditing}}
-        {{on 'keydown' this.handleKeydown}}
-        autofocus
+        class="toggle"
+        type="checkbox"
+        aria-label="Toggle the completion state of this todo"
+        checked={{@todo.completed}}
+        {{on 'change' (fn toggleCompleted @todo)}}
       >
-    </li>
-  </template>
-
-  @tracked editing;
-
-  removeTodo = () => repo.delete(this.args.todo);
-
-  toggleCompleted = (event) => {
-      this.args.todo.completed = event.target.checked;
-			repo.persist();
-  }
-
-  handleKeydown = (event) => {
-    if (event.keyCode === 13) {
-      event.target.blur();
-    } else if (event.keyCode === 27) {
-      this.editing = false;
-    }
-  }
-
-		startEditing = (event) => {
-			this.args.onStartEdit();
-      this.editing = true;
-
-      event.target.closest('li')?.querySelector('input.edit').focus();
-		}
-
-  doneEditing = (event) => {
-			if (!this.editing) { return; }
-
-      let todoTitle = event.target.value.trim();
-
-			if (isBlank(todoTitle)) {
-        this.removeTodo();
-			} else {
-        this.args.todo.title = todoTitle;
-        this.editing = false;
-				this.args.onEndEdit();
-			}
-  }
-}
+      <label {{on 'dblclick' startEditing}}>{{@todo.title}}</label>
+      <button
+        class="destroy"
+        {{on 'click' (fn repo.delete @todo)}}
+        type="button"
+        aria-label="Delete this todo"></button>
+    </div>
+    <input
+      class="edit"
+      value={{@todo.title}}
+      {{on 'blur' (fn doneEditing @todo)}}
+      {{on 'keydown' itemKeydown}}
+      autofocus
+    >
+  </li>
+</template>;

@@ -111,10 +111,16 @@ async function toggleAll() {
 	await click('#toggle-all');
 }
 
+import { activeList, canToggleAll, isEditing, repo } from 'todomvc/components/layout';
+
 module('Behavior', function (hooks) {
 	setupApplicationTest(hooks);
 
 	hooks.beforeEach(function () {
+		repo.data = null;
+		activeList.current = 'All';
+		canToggleAll.current = true;
+		isEditing.current = false;
 		localStorage.clear();
 	});
 
