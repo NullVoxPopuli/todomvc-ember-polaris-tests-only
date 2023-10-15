@@ -6,16 +6,15 @@ import title from 'ember-page-title/helpers/page-title';
 import { cell } from 'ember-resources';
 import { TrackedMap, TrackedObject } from 'tracked-built-ins';
 
-export const activeList = cell('All');
-export const canToggleAll = cell(true);
-export const isEditing = cell(false);
+let isEnter = (event) => event.keyCode === 13;
 
-const isViewingAll = () => activeList.current === 'All';
-const isViewingActive = () => activeList.current === 'Active';
-const isViewingCompleted = () => activeList.current === 'Completed';
-const showAll = () => (activeList.current = 'All');
-const showActive = () => (activeList.current = 'Active');
-const showCompleted = () => (activeList.current = 'Completed');
+let all = 'All';
+let active = 'Active';
+let completed = 'Completed';
+
+export let activeList = cell(all);
+export let canToggleAll = cell(true);
+export let isEditing = cell(false);
 
 class Repo {
 	data = null;
@@ -23,12 +22,13 @@ class Repo {
 	load = () => {
 		let list = JSON.parse(localStorage.getItem('todos') || '[]');
 
-		this.data = list.reduce((indexed, todo) => {
-			indexed.set(todo.id, new TrackedObject(todo));
+		this.data = list.reduce((data, todo) => {
+			data.set(todo.id, new TrackedObject(todo));
 
-			return indexed;
+			return data;
 		}, new TrackedMap());
 	};
+  save = () => localStorage.setItem('todos', JSON.stringify(this.all));
 
 	get all() {
 		return [...this.data.values()];
@@ -42,41 +42,42 @@ class Repo {
 		return this.all.filter((todo) => !todo.completed);
 	}
 
-	get remaining() {
-		return this.active;
-	}
-
 	get areAllCompleted() {
 		return this.completed.length === this.all.length;
 	}
 
-	add = (attrs) => {
+	add = info => {
 		let newId = uniqueId();
 
-		this.data.set(newId, new TrackedObject({ ...attrs, id: newId }));
-		this.persist();
+		this.data.set(newId, new TrackedObject({ ...info, id: newId }));
+		this.save();
 	};
 
-	delete = (todo) => {
+	delete = todo => {
 		this.data.delete(todo.id);
-		this.persist();
+		this.save();
 	};
-
 	clearCompleted = () => this.completed.forEach(this.delete);
-	persist = () => {
-		let data = [...this.data.values()];
-
-		localStorage.setItem('todos', JSON.stringify(data));
-	};
+  markAll = (todos, value) => {
+    todos.forEach(todo => todo.completed = value);
+    this.save();
+  }
 }
 
-export const repo = new Repo();
+export let repo = new Repo();
 
-const documentTitle = () => (isViewingAll() ? 'All' : isViewingActive() ? 'Active' : 'Completed');
-const displayedTodos = () =>
-	isViewingAll() ? repo.all : isViewingActive() ? repo.active : repo.completed;
+let isAll = () => activeList.current === all;
+let isActive = () => activeList.current === active;
+let isCompleted = () => activeList.current === completed;
+let showAll = () => (activeList.current = all);
+let showActive = () => (activeList.current = active);
+let showCompleted = () => (activeList.current = completed);
 
-const TodoApp = <template>
+let getTitle = () => (isAll() ? all : isActive() ? active : completed);
+let getTodos = () =>
+	isAll() ? repo.all : isActive() ? repo.active : repo.completed;
+
+let TodoApp = <template>
 	{{repo.load}}
 
 	<section class="todoapp">
@@ -91,8 +92,8 @@ const TodoApp = <template>
 			/>
 		</header>
 
-		{{title (documentTitle)}}
-		<TodoList @todos={{(displayedTodos)}} />
+		{{title (getTitle)}}
+		<TodoList @todos={{(getTodos)}} />
 
 		{{#if repo.all.length}}
 			<Footer />
@@ -103,23 +104,17 @@ const TodoApp = <template>
 export default TodoApp;
 
 function createTodo(event) {
-	let { keyCode, target } = event;
-	let value = target.value.trim();
+	let title = event.target.value.trim();
 
-	if (keyCode === 13 && !isBlank(value)) {
-		repo.add({ title: value, completed: false });
-		target.value = '';
+	if (isEnter(event) && !isBlank(title)) {
+		repo.add({ title, completed: false });
+		event.target.value = '';
 	}
 }
 
-function toggleAll(todos) {
-	let areAllCompleted = repo.areAllCompleted;
+let toggleAll = (todos) => repo.markAll(todos, !repo.areAllCompleted);
 
-	todos.forEach((todo) => (todo.completed = !areAllCompleted));
-	repo.persist();
-}
-
-const TodoList = <template>
+let TodoList = <template>
 	<section class="main">
 		{{#if @todos.length}}
 			{{#if canToggleAll.current}}
@@ -141,43 +136,7 @@ const TodoList = <template>
 	</section>
 </template>;
 
-function toggleCompleted(todo, event) {
-	todo.completed = event.target.checked;
-	repo.persist();
-}
-
-function startEditing(event) {
-	canToggleAll.current = false;
-	isEditing.current = true;
-
-	event.target.closest('li')?.querySelector('input.edit').focus();
-}
-
-function doneEditing(todo, event) {
-	if (!isEditing.current) {
-		return;
-	}
-
-	let todoTitle = event.target.value.trim();
-
-	if (isBlank(todoTitle)) {
-		repo.delete(todo);
-	} else {
-		todo.title = todoTitle;
-		isEditing.current = false;
-		canToggleAll.current = true;
-	}
-}
-
-function itemKeydown(event) {
-	if (event.keyCode === 13) {
-		event.target.blur();
-	} else if (event.keyCode === 27) {
-		isEditing.current = false;
-	}
-}
-
-const TodoItem = <template>
+let TodoItem = <template>
 	<li class="{{if @todo.completed 'completed'}} {{if isEditing.current 'editing'}}">
 		<div class="view">
 			<input
@@ -199,25 +158,58 @@ const TodoItem = <template>
 	</li>
 </template>;
 
-const itemLabel = (count) => (count === 0 || count > 1) ? 'items' : 'item';
+let toggleCompleted = (todo, event) => repo.markAll([todo], event.target.checked);
 
-const Footer = <template>
+function startEditing(event) {
+	canToggleAll.current = false;
+	isEditing.current = true;
+
+	event.target.closest('li').querySelector('input.edit').focus();
+}
+
+function doneEditing(todo, event) {
+	if (!isEditing.current) {
+		return;
+	}
+
+	let title = event.target.value.trim();
+
+	if (isBlank(title)) {
+		repo.delete(todo);
+	} else {
+		todo.title = title;
+		isEditing.current = false;
+		canToggleAll.current = true;
+	}
+}
+
+function itemKeydown(event) {
+	if (isEnter(event)) {
+		event.target.blur();
+	} else if (event.keyCode === 27) {
+		isEditing.current = false;
+	}
+}
+
+let itemLabel = (count) => (count === 0 || count > 1) ? 'items' : 'item';
+
+let Footer = <template>
 	<footer class="footer">
 		<span class="todo-count">
-			<strong>{{repo.remaining.length}}</strong>
-			{{itemLabel repo.remaining.length}}
+			<strong>{{repo.active.length}}</strong>
+			{{itemLabel repo.active.length}}
 			left
 		</span>
 
 		<ul class="filters">
 			<li>
-				<a href="#" class={{if (isViewingAll) "selected"}} {{on "click" showAll}}>All</a>
+				<a href="#" class={{if (isAll) "selected"}} {{on "click" showAll}}>{{all}}</a>
 			</li>
 			<li>
-				<a href="#" class={{if (isViewingActive) "selected"}} {{on "click" showActive}}>Active</a>
+				<a href="#" class={{if (isActive) "selected"}} {{on "click" showActive}}>{{active}}</a>
 			</li>
 			<li>
-				<a href="#" class={{if (isViewingCompleted) "selected"}} {{on "click" showCompleted}}>Completed</a>
+				<a href="#" class={{if (isCompleted) "selected"}} {{on "click" showCompleted}}>{{completed}}</a>
 			</li>
 		</ul>
 
