@@ -17,9 +17,25 @@ export const isEditing = cell(false);
 const isViewingAll = () => activeList.current === 'All';
 const isViewingActive = () => activeList.current === 'Active';
 const isViewingCompleted = () => activeList.current === 'Completed';
-const showAll = () => activeList.current = 'All'; 
+const showAll = () => activeList.current = 'All';
 const showActive = () => activeList.current = 'Active';
 const showCompleted = () => activeList.current = 'Completed';
+
+function load() {
+	let list = JSON.parse(localStorage.getItem('todos') || '[]');
+
+	return list.reduce((indexed, todo) => {
+		indexed.set(todo.id, new TrackedObject(todo));
+
+		return indexed;
+	}, new TrackedMap());
+}
+
+function save(indexedData) {
+	let data = [...indexedData.values()];
+
+	localStorage.setItem('todos', JSON.stringify(data));
+}
 
 class Repo {
 	data = null;
@@ -65,6 +81,9 @@ class Repo {
 
 export const repo = new Repo();
 
+const documentTitle = () => isViewingAll() ? 'All' : isViewingActive() ? 'Active' : 'Completed';
+const displayedTodos = () => isViewingAll() ? repo.all : isViewingActive() ? repo.active : repo.completed;
+
 const TodoApp = <template>
   {{repo.load}}
 
@@ -75,20 +94,9 @@ const TodoApp = <template>
       <Create />
     </header>
 
-    {{#if (isViewingAll)}}
-      {{title "All"}}
-
-      <TodoList @todos={{repo.all}} />
-    {{else if (isViewingActive)}}
-      {{title "Active"}}
-
-      <TodoList @todos={{repo.active}} />
-    {{else if (isViewingCompleted)}}
-      {{title "Completed"}}
-
-      <TodoList @todos={{repo.completed}} />
-    {{/if}}
-
+    {{title (documentTitle)}}
+    <TodoList @todos={{ (displayedTodos) }} />
+  
     {{#if (hasTodos repo.all)}}
       <Footer />
     {{/if}}
@@ -97,22 +105,6 @@ const TodoApp = <template>
 
 export default TodoApp;
 
-function load() {
-	let list = JSON.parse(window.localStorage.getItem('todos') || '[]');
-
-	return list.reduce((indexed, todo) => {
-		indexed.set(todo.id, new TrackedObject(todo));
-
-		return indexed;
-	}, new TrackedMap());
-}
-
-function save(indexedData) {
-	let data = [...indexedData.values()];
-
-	window.localStorage.setItem('todos', JSON.stringify(data));
-}
-
 function createTodo(event) {
     let { keyCode, target } = event;
     let value = target.value.trim();
@@ -120,7 +112,7 @@ function createTodo(event) {
     if (keyCode === 13 && !isBlank(value)) {
 				repo.add({ title: value, completed: false });
 				target.value = '';
-    }	
+    }
 }
 
 
