@@ -2,7 +2,6 @@ import { assert } from '@ember/debug';
 import {
 	blur,
 	click,
-	currentURL,
 	fillIn,
 	find,
 	findAll,
@@ -10,7 +9,7 @@ import {
 	triggerKeyEvent,
 	visit,
 } from '@ember/test-helpers';
-import { module, skip, test } from 'qunit';
+import { module, test } from 'qunit';
 import { setupApplicationTest } from 'ember-qunit';
 
 function byText(selector, text) {
